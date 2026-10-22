@@ -6,6 +6,8 @@ gameplay clips, a browse menu with collections, and one-button starts for arcade
 discs and Wii games. Nobody touches a Wii Menu, a settings screen or a Wii Remote. The cabinets are run from a Mac,
 hands-free, by Claude through an MCP server and a small remote agent built into the launcher.
 
+**Case study and video:** [mitchellv.me/work/wiizard](https://www.mitchellv.me/work/wiizard) · by [Mitchell Vizensky](https://www.mitchellv.me), game UX designer
+
 <p align="center"><img src="docs/media/loop-intro.gif" width="640" alt="Power-on: the wizard pops in, WIIZARD slams, the game count ticks up"></p>
 
 <p align="center"><b><a href="https://github.com/hotdog-face/wiizard/releases/download/v0.11-media/WIIZARD-reel.mp4">Watch the reel (72 s)</a></b> &middot;
