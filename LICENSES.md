@@ -15,11 +15,11 @@ pieces below, which keep their own licences.
 | `sdkit/fonts/Anton-Regular.ttf` | SIL Open Font License 1.1 | `sdkit/fonts/OFL-anton.txt` |
 | `sdkit/fonts/ArchivoBlack-Regular.ttf` | SIL Open Font License 1.1 | `sdkit/fonts/OFL-archivoblack.txt` |
 
-The wizard character and its artwork (`art/wizard-parts/`, `art/mockups/mitchell-wizard/`, `sdkit/ui/wizard.wza`,
+The wizard character and its artwork (`art/wizard-parts/`, `art/wizard-source/`, `sdkit/ui/wizard.wza`,
 `docs/wizard-intro.gif`) are Mitchell Vizensky's own art, included under the MIT licence with the rest of the project.
 
-Screenshots, recordings, boards and design mockups (`screens/`, `docs/media/`, `art/mockups/*.jpg`, and the media on
-the GitHub release) show the launcher's interface with games running in
+Screenshots, recordings and boards (`screens/`, `docs/media/`, and the media on the GitHub
+release) show the launcher's interface with games running in
 it. The games, their footage and their names belong to their respective owners and are shown only to illustrate the
 interface; no game data is included or licensed here.
 

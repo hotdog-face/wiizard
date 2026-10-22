@@ -8,10 +8,9 @@ hands-free, by Claude through an MCP server and a small remote agent built into 
 
 <p align="center"><img src="docs/media/loop-intro.gif" width="640" alt="Power-on: the wizard pops in, WIIZARD slams, the game count ticks up"></p>
 
-<p align="center"><b><a href="https://github.com/hotdog-face/wiizard/releases/download/v0.11-media/WIIZARD-reel.mp4">Watch the reel (85 s)</a></b> &middot;
-<a href="https://github.com/hotdog-face/wiizard/releases/tag/v0.11-media">1080p screen recordings</a> &middot; <a href="#gallery">Gallery</a></p>
+<p align="center"><b><a href="https://github.com/hotdog-face/wiizard/releases/tag/v0.11-media">1080p screen recordings</a></b> &middot; <a href="#gallery">Gallery</a></p>
 
-The wizard is my own character (from a 2017 drawing), cut out of the original PSD and puppeted for the power-on
+The wizard is my own character, from my own illustration, cut out of the original PSD and puppeted for the power-on
 intro: pop-in with squash and stretch, a blink, the Wii Remote flicked up like a wand, a wink, an idle bob.
 
 <table>
@@ -42,9 +41,6 @@ launching games and coming back, are on the [v0.11-media release](https://github
 
 ### How it was made
 
-![Twenty directions to one](docs/media/board-01-twenty-directions.jpg)
-![The shortlist](docs/media/board-02-shortlist.jpg)
-![Finding the wizard](docs/media/board-03-mascot.jpg)
 ![Rigging the wizard](docs/media/board-04-wizard-rig.jpg)
 ![Wired, the hard way: the USB Ethernet driver](docs/media/board-05-ethernet-driver.jpg)
 ![Run like a fleet](docs/media/board-06-fleet.jpg)
@@ -70,7 +66,7 @@ launching games and coming back, are on the [v0.11-media release](https://github
 | `nintendont/`, `retroarch/`, `sim/dolphin-wiisim.patch` | Our patches against Nintendont, RetroArch + libretro cores, and Dolphin, as patch files |
 | `sim/` | Running the launcher in Dolphin (headless, on the Mac or in Docker) to check screens and boot games without a console |
 | `videos/` | The media pipeline: gameplay clips, stills, audio, metadata, bezels, per-game RetroArch video overrides (`av_fix/`) |
-| `art/` | Art direction: twenty explored looks, the shortlist, the chosen "maximal collage", the wizard parts and animation, `make_ui.py` (pre-renders the UI art) |
+| `art/` | The "maximal collage" look: `make_ui.py` (pre-renders the UI art), the wizard cut-outs, parts and intro animation |
 | `NEW_WII.md` | New Wii -> cabinet, start to finish (owner steps vs remote steps) |
 
 The USB Ethernet driver lives on as its own library: **[libwiieth](https://github.com/hotdog-face/libwiieth)**.
@@ -232,18 +228,14 @@ IFO headers on the Mac), then a GameCube and a Wii disc (ID and title).
 **What the drive can't do:** Blu-ray (the drive can't read it), any CD (audio or data: the Wii drive doesn't read CDs),
 and PS2 discs (no PS2 emulation on a Wii).
 
-## Art direction
+## The look
 
-Twenty looks were mocked up on the same menu (kinetic poster, neon low-poly, toybox, risograph, mid-century flat,
-Bauhaus/Memphis, brutalist type, 80s arcade flyer, ...), six shortlisted, and **10, "maximal collage"** won: pink
-halftone paper with cut blue and yellow shapes, the selected game's clip on a taped, tilted photo on a white die-cut,
+**"Maximal collage"**: pink halftone paper with cut blue and yellow shapes, the selected game's clip on a taped, tilted photo on a white die-cut,
 neighbours as blue duotones, titles in Anton with a black stroke, slanted tag pills, a black bottom bar with square
 button keys.
 
-![The first ten of twenty explored looks](art/mockups/explore-sheet-1.jpg)
-
-- `art/mockups/render20.py` and `render_short.py` draw the explorations and the shortlist (they need game stills,
-  which aren't in the repo); the sheets and the candidate screens are in `art/mockups/`.
+- `art/wizard-source/` cuts the wizard out of my illustration (`cutout.py`) and adds the Wii Remote in its flat style
+  (`remote.py`).
 - `art/wizard-anim/anim.py` builds the intro from my PSD's layers (psd-tools): body, eyes, brows and sparkles as
   separate parts, puppeted; only the Wii Remote and the closed-eye lines are drawn new. `art/wizard-parts/` has the
   parts.

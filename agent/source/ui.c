@@ -1,6 +1,5 @@
 // WIIZARD, the arcade launcher UI: 640x480 for the CRTs, drawn with our GX renderer (gfx.c).
-// Look: "Maximal collage" (art direction 10, after Studio Moross; spec art/mockups/render20.py s10 and
-// render_short.py kit10): pink halftone paper with cut blue/yellow shapes and starbursts (sd:/arcade/ui/bg.png),
+// Look: "Maximal collage" (inspired by Studio Moross): pink halftone paper with cut blue/yellow shapes and starbursts (sd:/arcade/ui/bg.png),
 // the selected game's clip on a taped, tilted photo on a white die-cut, neighbours as blue duotones, titles in
 // Anton, yellow with a black stroke and offset shadow, slanted "tag" pills, a black bottom bar with square buttons.
 //   GAMES:   cards for the games of one section; the center card plays the game's clip (gameplay first), side cards
@@ -929,7 +928,7 @@ static void card_badges(int gi, const frame_t *f, float x, float y, Uint8 alpha)
 #define CARD_Y 166
 static frame_t draw_card(int gi, float cx, float cy, float c, int play, float cw, float ch) {
     float k = 0.72f + 0.28f * c, w = cw * k, h = ch * k, x = cx - w / 2, y = cy - h / 2, ks = w / CARD_W;
-    if (c > 0.01f) {                          // die-cut paper (corners as cut in the mockup) and its hard shadow
+    if (c > 0.01f) {                          // die-cut paper (cut corners) and its hard shadow
         u32 a = (u32)(255 * c);
         float q[8] = { x - 14 * ks, y - 10 * ks, x + w + 18 * ks, y - 22 * ks, x + w + 22 * ks, y + h + 6 * ks, x - 8 * ks, y + h + 20 * ks };
         float s[8];
@@ -1632,7 +1631,7 @@ void ui_show_loading(const game_t *g) {
 }
 
 // ---------------------------------------------------------------- power-on: Mitchell's wizard
-// His 2017 wizard, animated by the main session (art/wizard-anim: pop-in, blink, the Wii Remote flicked like a
+// Mitchell's own wizard, animated (art/wizard-anim: pop-in, blink, the Wii Remote flicked like a
 // wand, a wink, then an idle loop), streamed one frame at a time from sd:/arcade/ui/wizard.wza (see art/make_ui.py):
 // zlib-compressed RGB5A3 texels inflated straight into one texture (~6 ms a frame, no picture held in RAM).
 static FILE *wz_f;

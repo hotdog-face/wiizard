@@ -1,6 +1,6 @@
-# The launcher's "Maximal collage" look (art direction 10, after Studio Moross): the static pictures it draws under
+# The launcher's "Maximal collage" look (inspired by Studio Moross): the static pictures it draws under
 # everything, pre-rendered here with anti-aliasing (the Wii's GX draws polygons without it), plus Mitchell's wizard
-# animation packed for streaming. Spec: art/mockups/render20.py s10 (menu) and render_short.py kit10 (attract/loading).
+# animation packed for streaming.
 #   python3 art/make_ui.py   -> sdkit/ui/bg.png, band.png, wizard.wza (installed as sd:/arcade/ui/)
 # wizard.wza: "WZA1", u16 w, u16 h, u16 fps*100, u16 loop_from, u32 frames, u32 offset[frames + 1], then each frame
 # as zlib-compressed GX RGB5A3 4x4-tiled texels (inflated straight into a texture on the Wii, no re-tiling).

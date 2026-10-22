@@ -1,4 +1,4 @@
-# WIIZARD intro animation from Mitchell's own wizard (Desktop/wizards/wizards (1).psd, group "0", his 2017 art).
+# WIIZARD intro animation from Mitchell's own wizard illustration (his PSD, group "0").
 # His layers are composited with psd-tools into parts (body without eyes/brows/sparkles, eyes, brows, his sparkles),
 # then puppeted: pop-in with squash and stretch, blink, the Wii Remote flicked up like a wand with a sparkle burst,
 # brows up, a wink, and an idle bob that loops. Nothing is redrawn except the remote (in his flat style) and the
@@ -189,12 +189,7 @@ def main():
                         "frames from loop_from onward loop (idle bob, twinkle, blink at 3.35 s)"},
               open(os.path.join(HERE, "anim.json"), "w"), indent=1)
     # preview on the collage background, CRT-ish, as an mp4
-    import sys
-    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "mockups"))
-    from render_short import kit10, background
-    from render20 import star
-    bg = background(kit10())
-    star(ImageDraw.Draw(bg), 470, 250, 190, (255, 228, 0), 16, .78)
+    bg = Image.open(os.path.join(os.path.dirname(HERE), "..", "sdkit", "ui", "bg.png")).convert("RGBA")  # the collage paper (make_ui.py)
     pv = os.path.join(HERE, "preview")
     shutil.rmtree(pv, ignore_errors=True)
     os.makedirs(pv)

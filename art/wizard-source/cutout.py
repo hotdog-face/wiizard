@@ -1,5 +1,5 @@
-# Mitchell's own 2017 wizards (Desktop/wizards/wizards (1).psd), cut out of the composite by keying the grey canvas.
-# Saves each finished design as a transparent PNG: wiz1 (blue starry), wiz2 (outlined), wiz3/4 (teal, dark coat).
+# Mitchell's own wizard illustration (his PSD), cut out of the composite by keying the grey canvas.
+# Saves each figure on the canvas as a transparent PNG; wiz1 (blue, starry) is the WIIZARD mascot.
 import os
 from PIL import Image, ImageFilter
 HERE = os.path.dirname(os.path.abspath(__file__))
