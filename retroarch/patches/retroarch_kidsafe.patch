@@ -1,0 +1,212 @@
+diff --git a/frontend/drivers/platform_gx.c b/frontend/drivers/platform_gx.c
+index 4f1ab9a..8f984f0 100644
+--- a/frontend/drivers/platform_gx.c
++++ b/frontend/drivers/platform_gx.c
+@@ -565,6 +565,7 @@ static void frontend_gx_shutdown(bool unused)
+ {
+ #ifndef IS_SALAMANDER
+ #ifdef HW_RVL
++   wiizard_poweroff_if_requested(); /* POWER pressed: everything is saved by now; no return */
+    wiizard_return_to_launcher();   /* returns only if not started by WIIZARD (or its DOL is missing) */
+ #endif
+    exit(0);
+diff --git a/frontend/drivers/wiizard_wii.c b/frontend/drivers/wiizard_wii.c
+index 66655df..0ead940 100644
+--- a/frontend/drivers/wiizard_wii.c
++++ b/frontend/drivers/wiizard_wii.c
+@@ -466,3 +466,76 @@ static void wiizard_return_to_launcher(void)
+    wiizard_exec_wii(WZ_LAUNCHER, args, len);   /* no return on success */
+    wz_screen_free();
+ }
++
++/* ---------------------------------------------------------------- kid-safe cabinet buttons + idle quit
++ * RESET (front of the Wii): quits to WIIZARD like L+R+Z+START, instead of opening RetroArch's menu
++ *   (gx_joypad.c reset_cb -> wiizard_request_quit; consumed by runloop.c through wiizard_quit_due).
++ * POWER: the normal clean unload (content, SRAM .srm, the cores' .hi/.nv on deinit), then the console powers off
++ *   instead of returning to WIIZARD (gx_joypad.c power_callback -> wiizard_request_poweroff; done at frontend
++ *   shutdown, after main_exit has unloaded everything).
++ * Idle quit (WIIZARD starts only): no button or analog stick change on any port for WZ_IDLE_MINUTES -> quit to
++ *   WIIZARD (which powers off by itself after its own attract-mode idle time). sd:/arcade/idletest present:
++ *   WZ_IDLE_TEST_MINUTES instead (read once, on the first frame; the file is never changed). Separate from the
++ *   autotest timer (runloop.c swiirl_autotest_*). */
++#define WZ_IDLE_MINUTES      15
++#define WZ_IDLE_TEST_MINUTES 1
++#define WZ_IDLE_TEST_PATH    "sd:/arcade/idletest"
++
++static volatile bool wz_quit_req;        /* RESET pressed */
++static volatile bool wz_poweroff_req;    /* POWER pressed */
++static volatile u32 wz_activity;         /* bumped by the pad driver on any input change */
++
++bool wiizard_active(void) { return wz.active; }
++void wiizard_request_quit(void) { wz_quit_req = true; }
++void wiizard_request_poweroff(void) { wz_poweroff_req = true; }
++void wiizard_input_activity(void) { wz_activity++; }
++
++/* runloop_check_state, every frame, next to the autotest: true = quit now (through the quit-key path) */
++bool wiizard_quit_due(int64_t now_us)
++{
++   static int     idle_secs = -1;        /* -1: not read yet */
++   static int64_t idle_since;
++   static u32     seen;
++   if (wz_quit_req)
++   {
++      wz_quit_req = false;
++      RARCH_LOG("[WIIZARD] RESET pressed: quitting to WIIZARD.\n");
++      return true;
++   }
++   if (!wz.active)
++      return false;
++   if (idle_secs < 0)
++   {
++      struct stat st;
++      bool test = stat(WZ_IDLE_TEST_PATH, &st) == 0;
++      idle_secs = (test ? WZ_IDLE_TEST_MINUTES : WZ_IDLE_MINUTES) * 60;
++      RARCH_LOG("[WIIZARD] idle quit after %d s without input%s.\n", idle_secs,
++            test ? " (" WZ_IDLE_TEST_PATH " present)" : "");
++   }
++   if (!idle_since || seen != wz_activity)
++   {
++      seen       = wz_activity;
++      idle_since = now_us;
++      return false;
++   }
++   if (now_us - idle_since < (int64_t)idle_secs * 1000000)
++      return false;
++   RARCH_LOG("[WIIZARD] idle: no controller input for %d s, quitting to WIIZARD.\n", idle_secs);
++   idle_since = 0;
++   return true;
++}
++
++/* frontend shutdown, before the return to the launcher: POWER was pressed -> the console goes off. Everything is
++ * unloaded and saved by now (main_exit); unmounting flushes the card's FAT caches first. */
++static void wiizard_poweroff_if_requested(void)
++{
++   if (!wz_poweroff_req)
++      return;
++   wiizard_loading_stop();
++   VIDEO_SetBlack(true);
++   VIDEO_Flush();
++   VIDEO_WaitVSync();
++   fatUnmount("sd:");
++   fatUnmount("usb:");
++   SYS_ResetSystem(SYS_POWEROFF, 0, 0);
++}
+diff --git a/input/drivers_joypad/gx_joypad.c b/input/drivers_joypad/gx_joypad.c
+index e9fc8cc..88eb43a 100644
+--- a/input/drivers_joypad/gx_joypad.c
++++ b/input/drivers_joypad/gx_joypad.c
+@@ -17,6 +17,7 @@
+ 
+ #include <stdint.h>
+ #include <math.h>
++#include <string.h>
+ 
+ #include <gccore.h>
+ #include <ogc/pad.h>
+@@ -28,6 +29,7 @@
+ 
+ #include "../input_driver.h"
+ #include "../../retroarch.h"
++#include "../../verbosity.h"
+ #include "../../tasks/tasks_internal.h"
+ 
+ #ifdef GEKKO
+@@ -136,10 +138,53 @@ static bool g_menu = false;
+ #ifdef HW_RVL
+ static bool g_quit = false;
+ 
+-static void power_callback(void) { g_quit = true; }
+-#endif
++/* WIIZARD (frontend/drivers/wiizard_wii.c): POWER = clean unload then power off, RESET = quit to WIIZARD when
++ * started by it (instead of RetroArch's menu), any input change resets the idle-quit timer */
++extern bool wiizard_active(void);
++extern void wiizard_request_quit(void);
++extern void wiizard_request_poweroff(void);
++extern void wiizard_input_activity(void);
++
++static void power_callback(void) { wiizard_request_poweroff(); g_quit = true; }
++
++static void reset_cb(unsigned int a, void *b)
++{
++   if (wiizard_active())
++      wiizard_request_quit();
++   else
++      g_menu = true;
++}
+ 
++/* idle-quit activity: any digital change, or an analog axis moving more than WZ_ANALOG_STEP from where it was at
++ * the last activity (stick noise doesn't count), on any port */
++#define WZ_ANALOG_STEP 0x1000
++static void wiizard_check_activity(void)
++{
++   static uint64_t ref_state[DEFAULT_MAX_PADS];
++   static int16_t  ref_analog[DEFAULT_MAX_PADS][2][2];
++   bool changed = false;
++   unsigned p, i, j;
++   for (p = 0; p < DEFAULT_MAX_PADS; p++)
++   {
++      if (pad_state[p] != ref_state[p])
++         changed = true;
++      for (i = 0; i < 2; i++)
++         for (j = 0; j < 2; j++)
++         {
++            int d = (int)analog_state[p][i][j] - (int)ref_analog[p][i][j];
++            if (d > WZ_ANALOG_STEP || d < -WZ_ANALOG_STEP)
++               changed = true;
++         }
++   }
++   if (!changed)
++      return;
++   memcpy(ref_state, pad_state, sizeof(ref_state));
++   memcpy(ref_analog, analog_state, sizeof(ref_analog));
++   wiizard_input_activity();
++}
++#else
+ static void reset_cb(unsigned int a, void *b) { g_menu = true; }
++#endif
+ 
+ #ifdef HW_RVL
+ static inline void gx_mouse_info(uint32_t joybutton, unsigned port)
+@@ -454,6 +499,7 @@ static void gx_joypad_poll(void)
+ #ifdef HW_RVL
+    if (g_quit)
+    {
++      RARCH_LOG("[WIIZARD] POWER pressed: unloading content (saves), then powering off.\n");
+       retroarch_ctl(RARCH_CTL_SET_SHUTDOWN, NULL);
+       g_quit = false;
+       return;
+@@ -592,6 +638,9 @@ static void gx_joypad_poll(void)
+                analog_state[port][i][j] = -0x7fff;
+    }
+ 
++#ifdef HW_RVL
++   wiizard_check_activity();
++#endif
+    state_p1 = pad_state[0];
+ 
+    BIT64_CLEAR(lifecycle_state, RARCH_MENU_TOGGLE);
+diff --git a/runloop.c b/runloop.c
+index b1fdd96..26123d5 100644
+--- a/runloop.c
++++ b/runloop.c
+@@ -5574,6 +5574,9 @@ static INLINE bool runloop_is_libretro_running(runloop_state_t* runloop_st, bool
+  * network QUIT does). Missing or invalid file: no effect. The file is only read, never changed (the launcher
+  * owns it). */
+ #define SWIIRL_AUTOTEST_PATH "sd:/arcade/autotest"
++#if defined(HW_RVL)
++extern bool wiizard_quit_due(int64_t now_us);   /* frontend/drivers/wiizard_wii.c */
++#endif
+ static long         swiirl_autotest_secs     = -1; /* -1: not read yet, 0: off or done */
+ static retro_time_t swiirl_autotest_deadline = 0;
+ 
+@@ -5976,6 +5979,10 @@ static enum runloop_state_enum runloop_check_state(
+ #if defined(GEKKO)
+       if (swiirl_autotest_due(current_time))
+          trig_quit_key = true;
++#if defined(HW_RVL)
++      if (wiizard_quit_due(current_time))   /* RESET, or the idle quit (frontend/drivers/wiizard_wii.c) */
++         trig_quit_key = true;
++#endif
+ #endif
+ 
+       if (RUNLOOP_TIME_TO_EXIT(trig_quit_key))

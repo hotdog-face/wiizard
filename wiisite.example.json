@@ -1,0 +1,13 @@
+{
+  "subnet": "192.168.0",
+  "update_server": "buildbox.local:8088",
+  "publish_host": "buildbox",
+  "publish_root": "wii-fleet/dist",
+  "collector": "buildbox",
+  "nas": "user@nas.local",
+  "nas_wii": "/path/on/nas/Roms/Wii",
+  "nas_backup": "/path/on/nas/Wii-Backups/master-card",
+  "sim_host": "buildbox",
+  "sim_ip": "",
+  "usblgx_password": ""
+}

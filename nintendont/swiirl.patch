@@ -1,0 +1,431 @@
+diff --git a/common/include/CommonConfig.h b/common/include/CommonConfig.h
+index d85dce4..503b372 100644
+--- a/common/include/CommonConfig.h
++++ b/common/include/CommonConfig.h
+@@ -9,6 +9,11 @@
+ 
+ #define NIN_CFG_MAXPAD 4
+ 
++// WIIZARD idle exit: back to the launcher after this many minutes without any pad change during a game
++// (NIN_IDLE_TEST_MINUTES when sd:/arcade/idletest exists, for testing). PADReadGC.c counts, the kernel passes it.
++#define NIN_IDLE_MINUTES	15
++#define NIN_IDLE_TEST_MINUTES	1
++
+ typedef struct NIN_CFG
+ {
+ 	unsigned int		Magicbytes;		// 0x01070CF6
+@@ -54,6 +59,8 @@ enum ninconfigbitpos
+ 	NIN_CFG_BIT_BBA_EMU		= (19),
+ 
+ 	// Internal kernel settings.
++	NIN_CFG_BIT_IDLETEST	= (29),	// WIIZARD: set by the loader when sd:/arcade/idletest exists (1-minute idle exit)
++	NIN_CFG_BIT_AUTOTEST	= (30),	// SWIIRL: return to the loader after 40 s (boot tests)
+ 	NIN_CFG_BIT_MC_SLOTB	= (31),	// Slot B image is loaded
+ };
+ 
+@@ -74,6 +81,8 @@ enum ninconfig
+ 	NIN_CFG_LED		= (1<<NIN_CFG_BIT_LED),		// Only for Wii Version
+ 	NIN_CFG_LOG		= (1<<NIN_CFG_BIT_LOG),
+ 
++	NIN_CFG_IDLETEST	= (1<<NIN_CFG_BIT_IDLETEST),
++	NIN_CFG_AUTOTEST	= (1<<NIN_CFG_BIT_AUTOTEST),
+ 	NIN_CFG_MC_MULTI	= (1<<NIN_CFG_BIT_MC_MULTI),
+ 	NIN_CFG_NATIVE_SI	= (1<<NIN_CFG_BIT_NATIVE_SI),	// Only for Wii Version
+ 	NIN_CFG_WIIU_WIDE	= (1<<NIN_CFG_BIT_WIIU_WIDE),	// Only for Wii U Version
+diff --git a/common/include/NintendontVersion.h b/common/include/NintendontVersion.h
+index ad01f9e..07127f4 100644
+--- a/common/include/NintendontVersion.h
++++ b/common/include/NintendontVersion.h
+@@ -13,5 +13,6 @@
+ // "Special" version.
+ // This should only be set in custom builds, i.e. not mainline.
+ //#define NIN_SPECIAL_VERSION			"-BBABeta13"
++#define NIN_SPECIAL_VERSION			"-swiirl"	// SWIIRL arcade build: exit combo, autotest, theme
+ 
+ #endif
+diff --git a/kernel/Patch.c b/kernel/Patch.c
+index 5045cd8..e5b6ff3 100644
+--- a/kernel/Patch.c
++++ b/kernel/Patch.c
+@@ -4590,6 +4590,8 @@ void PatchGame()
+ 	write32(0x13003068, PADForceConnected() && (useipl == 0));
+ 	write32(0x1300306C, drcAddress); //Set on kernel boot
+ 	write32(0x13003070, drcAddressAligned); //Set on kernel boot
++	write32(0x13003074, ConfigGetConfig(NIN_CFG_AUTOTEST) ? 40 : 0); // SWIIRL: autotest, seconds until exit
++	write32(0x13003078, (ConfigGetConfig(NIN_CFG_IDLETEST) ? NIN_IDLE_TEST_MINUTES : NIN_IDLE_MINUTES) * 60); // WIIZARD: idle exit, seconds
+ 	sync_after_write((void*)0x13003060, 0x20);
+ 	/* Clear very actively used areas */
+ 	memset32((void*)0x13026500, 0, 0x100);
+diff --git a/loader/include/global.h b/loader/include/global.h
+index 606fd4d..b6a702a 100644
+--- a/loader/include/global.h
++++ b/loader/include/global.h
+@@ -50,14 +50,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ 
+ // RGBA Colors
+ #define AQUA				0x00FFFFFF
+-#define BLACK				0x000000FF
++#define BLACK				0xD6DCEAFF	// SWIIRL: light text on the dark background
+ #define BLUE				0x0000FFFF
+ #define DARK_BLUE			0x00173bFF
+ #define FUCHSIA				0xFF00FFFF
+ #define GRAY				0x808080FF
+ #define GREEN				0x00C108FF
+ #define LIME				0x00FF00FF
+-#define MAROON				0x800000FF
++#define MAROON				0xF08A8AFF	// SWIIRL: soft red on dark
+ #define NAVY				0x000080FF
+ #define OLIVE				0x808000FF
+ #define PURPLE				0x800080FF
+@@ -183,6 +183,10 @@ void CloseDevices();
+ void hexdump(void *d, int len);
+ void DrawBuffer(void);
+ void UpdateScreen(void);
++void SwiirlLoadingFrame(void);
++void SwiirlLoadingStart(void);
++void SwiirlLoadingStop(void);
++void SwiirlLoadingFadeOut(void);
+ void Screenshot(void);
+ raw_irq_handler_t BeforeIOSReload();
+ void AfterIOSReload(raw_irq_handler_t handle, u32 rev);
+diff --git a/loader/source/global.c b/loader/source/global.c
+index ce528fb..748d6a9 100644
+--- a/loader/source/global.c
++++ b/loader/source/global.c
+@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ 
+ #include <gccore.h>
+ #include <ogc/audio.h>
++#include <ogc/lwp.h>
+ #include <ogc/consol.h>
+ #include <ogc/dsp.h>
+ #include <ogc/es.h>
+@@ -44,6 +45,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ 
+ // Background image.
+ #include "background_png.h"
++#include <math.h>
+ 
+ GRRLIB_ttfFont *myFont;
+ GRRLIB_texImg *background;
+@@ -228,6 +230,58 @@ inline void DrawBuffer(void) {
+ 	GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF);
+ }
+ 
++/* SWIIRL: while a game loads straight from the cabinet launcher (argsboot), the loader shows no text, which
++ * read as a broken black screen for ~10 s. Instead: the dark SWIIRL background fading in, and a calm ring of soft
++ * dots turning and breathing below the centre. One call = one frame (GRRLIB_Render waits for the vsync). */
++static int swiirl_frame;
++/* The loader blocks for seconds at a time (kernel load, IOS reload, storage mount), so the animation runs on its own
++ * thread: one frame per vsync whatever the main thread is doing. Main-thread calls become no-ops while it runs. */
++static lwp_t swiirl_thread = LWP_THREAD_NULL;
++static volatile int swiirl_run;
++static void swiirl_draw(void);
++static void *swiirl_loop(void *arg) { while (swiirl_run) swiirl_draw(); return NULL; }
++void SwiirlLoadingStart(void) {
++	if (swiirl_thread != LWP_THREAD_NULL) return;
++	swiirl_run = 1;
++	if (LWP_CreateThread(&swiirl_thread, swiirl_loop, NULL, NULL, 32 * 1024, 70) < 0) swiirl_thread = LWP_THREAD_NULL;
++}
++void SwiirlLoadingStop(void) {
++	if (swiirl_thread == LWP_THREAD_NULL) return;
++	swiirl_run = 0;
++	LWP_JoinThread(swiirl_thread, NULL);
++	swiirl_thread = LWP_THREAD_NULL;
++}
++void SwiirlLoadingFrame(void) { if (swiirl_thread == LWP_THREAD_NULL) swiirl_draw(); }
++static void swiirl_draw(void) {
++	int f = swiirl_frame++;
++	int fade = f < 24 ? f * 255 / 24 : 255;                  // the first ~0.4 s: in from black
++	GRRLIB_FillScreen(0x000000FF);
++	GRRLIB_DrawImg(bg_xPos, 0, background, 0, bg_xScale, 1, RGBA(255, 255, 255, fade));
++	const int dots = 12;
++	float spin = f * 0.045f;                                  // about one turn every 2.3 s
++	float breathe = 0.5f + 0.5f * sinf(f * 0.05f);            // slow swell of the whole ring
++	float cx = 320, cy = 340, r = 26 + 3 * breathe;
++	int i;
++	for (i = 0; i < dots; i++) {
++		float a = spin + i * (6.2831853f / dots);
++		int lead = (i * 255) / (dots - 1);                    // a soft comet: brightest dot leads, the rest trail off
++		int alpha = (40 + lead * 215 / 255) * fade / 255;
++		float size = 2.2f + 2.6f * lead / 255.0f;
++		GRRLIB_Circle(cx + r * cosf(a), cy + r * sinf(a), size + 2.5f, RGBA(80, 255, 130, alpha / 5), 1);   // glow
++		GRRLIB_Circle(cx + r * cosf(a), cy + r * sinf(a), size, RGBA(170, 255, 190, alpha), 1);
++	}
++	GRRLIB_Render();
++}
++void SwiirlLoadingFadeOut(void) {                         // to black before the game takes the screen
++	int i;
++	SwiirlLoadingStop();
++	for (i = 1; i <= 12; i++) {
++		swiirl_draw();
++		GRRLIB_FillScreen(RGBA(0, 0, 0, i * 255 / 12));
++		GRRLIB_Render();
++	}
++}
++
+ inline void UpdateScreen(void) {
+ 	GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE);
+ 	GRRLIB_Render();
+@@ -270,6 +324,7 @@ void AfterIOSReload(raw_irq_handler_t handle, u32 rev)
+ void ExitToLoader(int ret)
+ {
+ 	extern vu32 KernelLoaded;
++	SwiirlLoadingStop();                  /* an error on the way: the message must not race the animation */
+ 
+ 	UpdateScreen();
+ 	UpdateScreen(); // Triple render to ensure it gets seen
+diff --git a/loader/source/main.c b/loader/source/main.c
+index aef1e55..9c95ccd 100644
+--- a/loader/source/main.c
++++ b/loader/source/main.c
+@@ -586,6 +586,7 @@ int main(int argc, char **argv)
+ 	//STM_RegisterEventHandler(HandleSTMEvent);
+ 
+ 	Initialise(argsboot);
++	if(argsboot) SwiirlLoadingStart();   // SWIIRL/WIIZARD: the loading animation keeps moving through every step
+ 
+ 	//for BT.c
+ 	CONF_GetPadDevices((conf_pads*)0x932C0000);
+@@ -617,6 +618,8 @@ int main(int argc, char **argv)
+ 		// Preparing IOS58 Kernel...
+ 		if(argsboot == false)
+ 			ShowMessageScreen("Preparing IOS58 Kernel...");
++		else
++			SwiirlLoadingFrame();
+ 
+ 		u32 u;
+ 		//Disables MEMPROT for patches
+@@ -660,6 +663,8 @@ int main(int argc, char **argv)
+ 		// Loading IOS58 Kernel...
+ 		if(argsboot == false)
+ 			ShowMessageScreen("Loading IOS58 Kernel...");
++		else
++			SwiirlLoadingFrame();
+ 
+ 		//libogc still has that, lets close it
+ 		__ES_Close();
+@@ -683,6 +688,8 @@ int main(int argc, char **argv)
+ 	// Preparing Nintendont Kernel...
+ 	if(argsboot == false)
+ 		ShowMessageScreen("Preparing Nintendont Kernel...");
++	else
++		SwiirlLoadingFrame();
+ 
+ 	//inject nintendont thread
+ 	void *kernel_bin = NULL;
+@@ -698,6 +705,8 @@ int main(int argc, char **argv)
+ 	//Loading Nintendont Kernel...
+ 	if(argsboot == false)
+ 		ShowMessageScreen("Loading Nintendont Kernel...");
++	else
++		SwiirlLoadingFrame();
+ 	//close in case this is wii vc
+ 	__ES_Close();
+ 	memset( STATUS, 0, 0x20 );
+@@ -717,6 +726,8 @@ int main(int argc, char **argv)
+ 	//Waiting for Nintendont...
+ 	if(argsboot == false)
+ 		ShowMessageScreen("Waiting for Nintendont...");
++	else
++		SwiirlLoadingFrame();
+ 	while(1)
+ 	{
+ 		DCInvalidateRange( STATUS, 0x20 );
+@@ -725,6 +736,7 @@ int main(int argc, char **argv)
+ 			gprintf("Kernel sent signal\n");
+ 			break;
+ 		}
++		if(argsboot) SwiirlLoadingFrame();
+ 	}
+ 	//Async Ioctlv done by now
+ 	IOS_Close(fd);
+@@ -735,6 +747,8 @@ int main(int argc, char **argv)
+ 	// Checking for storage devices...
+ 	if(argsboot == false)
+ 		ShowMessageScreen("Checking storage devices...");
++	else
++		SwiirlLoadingFrame();
+ 
+ 	// Initialize devices.
+ 	// TODO: Only mount the device Nintendont was launched from
+@@ -1233,6 +1247,19 @@ int main(int argc, char **argv)
+ 		ncfg->Config &= ~NIN_CFG_FORCE_PROG;
+ 	}
+ 
++	// WIIZARD: sd:/arcade/idletest present -> 1-minute idle exit (PADReadGC.c). Read once here, never changed;
++	// set after nincfg.bin was written, so it is never saved.
++	ncfg->Config &= ~NIN_CFG_IDLETEST;
++	{
++		FIL idlef;
++		if (f_open_char(&idlef, "sd:/arcade/idletest", FA_READ|FA_OPEN_EXISTING) == FR_OK)
++		{
++			f_close(&idlef);
++			ncfg->Config |= NIN_CFG_IDLETEST;
++			gprintf("WIIZARD: idle test (sd:/arcade/idletest), %d minute idle exit\r\n", NIN_IDLE_TEST_MINUTES);
++		}
++	}
++
+ 	//make sure the cfg gets to the kernel
+ 	DCStoreRange((void*)ncfg, sizeof(NIN_CFG));
+ 
+@@ -1252,6 +1279,7 @@ int main(int argc, char **argv)
+ 		DCInvalidateRange( STATUS, 0x20 );
+ 		if( STATUS_LOADING == 0xdeadbeef )
+ 			break;
++		if(argsboot) SwiirlLoadingFrame();
+ 
+ 		if(argsboot == false)
+ 		{
+@@ -1386,6 +1414,7 @@ int main(int argc, char **argv)
+ 		GRRLIB_Render();
+ 		DrawBuffer(); // Draw all status messages
+ 	}
++	if(argsboot) SwiirlLoadingFadeOut();
+ //	memcpy( (void*)0x80000000, (void*)0x90140000, 0x1200000 );
+ 	GRRLIB_FreeTexture(background);
+ 	GRRLIB_FreeTexture(screen_buffer);
+diff --git a/loader/source/ppc/PADReadGC/source/PADReadGC.c b/loader/source/ppc/PADReadGC/source/PADReadGC.c
+index c382013..813ef04 100644
+--- a/loader/source/ppc/PADReadGC/source/PADReadGC.c
++++ b/loader/source/ppc/PADReadGC/source/PADReadGC.c
+@@ -35,6 +35,12 @@ static vu32* PADSwitchRequired = (vu32*)0x93003064;
+ static vu32* PADForceConnected = (vu32*)0x93003068;
+ static vu32* drcAddress = (vu32*)0x9300306C;
+ static vu32* drcAddressAligned = (vu32*)0x93003070;
++static vu32* AutoTestSecs = (vu32*)0x93003074;   // SWIIRL: >0 = exit to the loader after that many seconds
++static u32 autotest_last, autotest_ticks;
++static vu32* IdleExitSecs = (vu32*)0x93003078;   // WIIZARD: >0 = exit after that many seconds without pad changes
++static u8* const IdleRef = (u8*)0x930030A0;      // WIIZARD: 0x930030A0-0x930030CF (free), the 4 PADStatus at the last change
++static u64 idle_t0;                               // time base at the last change (0: not started)
++
+ 
+ static u32 PrevAdapterChannel1 = 0;
+ static u32 PrevAdapterChannel2 = 0;
+@@ -190,13 +196,7 @@ u32 PADRead(u32 calledByGame)
+ 		if(drcbutton & WIIDRC_BUTTON_HOME) goto DoExit;
+ 		//write in mapped out buttons
+ 		Pad[WiiUGamepadSlot].button = button;
+-		if((Pad[WiiUGamepadSlot].button&0x1030) == 0x1030) //reset by pressing start, Z, R
+-		{
+-			/* reset status 3 */
+-			*RESET_STATUS = 0x3DEA;
+-		}
+-		else /* for held status */
+-			*RESET_STATUS = 0;
++		*RESET_STATUS = 0;	/* SWIIRL: no START+Z+R reset */
+ 		//do scale, deadzone and clamp
+ 		s8 tmp_stick8; s16 tmp_stick16;
+ 		_DRC_BUILD_TMPSTICK(i2cdata[4]);
+@@ -308,11 +308,18 @@ u32 PADRead(u32 calledByGame)
+ 					Pad[chan].triggerRight = 0;
+ 			}
+ 
+-			/* exit by pressing B,Z,R,PAD_BUTTON_DOWN */
++			/* exit by pressing B,Z,R,PAD_BUTTON_DOWN, or (SWIIRL cabinets) L,R,Z,START like the arcade games;
++			   L and R count when clicked or pressed most of the way (kids rarely click them fully) */
+ 			if((Pad[chan].button&0x234) == 0x234)
+ 			{
+ 				goto DoExit;
+ 			}
++			if((Pad[chan].button&0x1010) == 0x1010 &&
++			   ((Pad[chan].button&PAD_TRIGGER_L) || ((PADTriggerCStick>>8)&0xFF) > 0xB0) &&
++			   ((Pad[chan].button&PAD_TRIGGER_R) || ((PADTriggerCStick>>0)&0xFF) > 0xB0))
++			{
++				goto DoExit;
++			}
+ 			if((Pad[chan].button&0x1c00) == 0x1c00 || ((*PadUsed & (1 << chan)) == 0))
+ 			{
+ 				OffsetX[chan] = Pad[chan].stickX;
+@@ -353,13 +360,7 @@ u32 PADRead(u32 calledByGame)
+ 				tempStick = -0x80;
+ 			Pad[chan].substickY = (s8)tempStick;
+ 
+-			if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+-			{
+-				/* reset status 3 */
+-				*RESET_STATUS = 0x3DEA;
+-			}
+-			else /* for held status */
+-				*RESET_STATUS = 0;
++			*RESET_STATUS = 0;	/* SWIIRL: no START+Z+R reset */
+ 			/* clear unneeded button attributes */
+ 			Pad[chan].button &= 0x9F7F;
+ 			/* set current command */
+@@ -629,13 +630,7 @@ u32 PADRead(u32 calledByGame)
+ 			button |= PAD_BUTTON_START;
+ 		Pad[chan].button = button;
+ 
+-		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+-		{
+-			/* reset status 3 */
+-			*RESET_STATUS = 0x3DEA;
+-		}
+-		else /* for held status */
+-			*RESET_STATUS = 0;
++		*RESET_STATUS = 0;	/* SWIIRL: no START+Z+R reset */
+ 
+ 		/* then analog sticks */
+ 		s8 stickX, stickY, substickX, substickY;
+@@ -1525,18 +1520,54 @@ u32 PADRead(u32 calledByGame)
+ 			Pad[chan].stickY = Pad[chan].triggerLeft;
+ 		#endif
+ 
+-		//exit by pressing B,Z,R,PAD_BUTTON_DOWN
+-		if((Pad[chan].button&0x234) == 0x234)
++		//exit by pressing B,Z,R,PAD_BUTTON_DOWN, or (SWIIRL arcade cabinets) L,R,Z,START like the arcade games
++		if((Pad[chan].button&0x234) == 0x234 || (Pad[chan].button&0x1070) == 0x1070)
+ 		{
+ 			goto DoExit;
+ 		}
+-		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
++		// SWIIRL: no START+Z+R reset: on a cabinet it only restarted the game when players meant to quit
++		*RESET_STATUS = 0;
++	}
++
++	/* SWIIRL autotest: back to the loader after AutoTestSecs of play (boot tests run unattended) */
++	if(*AutoTestSecs)
++	{
++		u32 tb;
++		asm volatile("mftb %0" : "=r"(tb));
++		if(autotest_last) autotest_ticks += tb - autotest_last;   /* time base: 60.75 MHz */
++		autotest_last = tb;
++		if(autotest_ticks / 60750000 >= *AutoTestSecs)
++			goto DoExit;
++	}
++
++	/* WIIZARD idle exit: back to the launcher (same exit as L+R+Z+START) after IdleExitSecs without any button,
++	   stick or trigger change on any port. Sticks/triggers count when they move more than 16 from where they were
++	   at the last change (noise doesn't). 64-bit time base, 60.75 MHz. Kept small: this binary must fit in 0x3000
++	   bytes, so the reference copy of the pads lives in free shared memory (IdleRef). */
++	if(*IdleExitSecs)
++	{
++		u8 *cur = (u8*)Pad;	/* 4 x PADStatus (12 bytes): button(2) sticks(4) triggers(2) analogA/B err pad */
++		u32 hi, lo, hi2, c, k, changed = (idle_t0 == 0);
++		u64 now;
++		for(c = 0; c < 4*12; c += 12)
++		{
++			if(((cur[c] ^ IdleRef[c]) & 0x1F) || ((cur[c+1] ^ IdleRef[c+1]) & 0x7F))
++				changed = 1;
++			for(k = c+2; k < c+8; ++k)
++			{
++				s32 d = (s8)cur[k] - (s8)IdleRef[k];
++				if(d > 16 || d < -16) changed = 1;
++			}
++		}
++		do { asm volatile("mftbu %0\n\tmftb %1\n\tmftbu %2" : "=r"(hi), "=r"(lo), "=r"(hi2)); } while(hi != hi2);
++		now = ((u64)hi << 32) | lo;
++		if(changed)
+ 		{
+-			/* reset status 3 */
+-			*RESET_STATUS = 0x3DEA;
++			for(k = 0; k < 4*12; ++k) IdleRef[k] = cur[k];
++			idle_t0 = now;
+ 		}
+-		else // for held status
+-			*RESET_STATUS = 0;
++		else if(now - idle_t0 >= (u64)(*IdleExitSecs) * 60750000u)
++			goto DoExit;
+ 	}
+ 
+ 	/* Some games always need the controllers "used" */

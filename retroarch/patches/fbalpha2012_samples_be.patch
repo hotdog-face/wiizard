@@ -1,0 +1,15 @@
+diff --git a/svn-current/trunk/src/burn/snd/samples.cpp b/svn-current/trunk/src/burn/snd/samples.cpp
+index 99a6d85..2bfef19 100644
+--- a/svn-current/trunk/src/burn/snd/samples.cpp
++++ b/svn-current/trunk/src/burn/snd/samples.cpp
+@@ -76,8 +76,8 @@ static void make_raw(UINT8 *src, UINT32 len)
+ 			UINT32 x = (UINT32)((float)(i * (sample_rate * 1.00000 / nBurnSoundRate)));
+ 
+ 			if (bits == 2) {						//  signed 16 bit, stereo & mono
+-				data[i * 2 + 0] = poin[x * channels + 0             ];
+-				data[i * 2 + 1] = poin[x * channels + (channels / 2)];
++				data[i * 2 + 0] = BURN_ENDIAN_SWAP_INT16(poin[x * channels + 0             ]);
++				data[i * 2 + 1] = BURN_ENDIAN_SWAP_INT16(poin[x * channels + (channels / 2)]);
+ 			}
+ 
+ 			if (bits == 1) {						// unsigned 8 bit, stereo & mono

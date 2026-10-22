@@ -1,0 +1,29 @@
+# local settings (wiisite.example.json is the template)
+wiisite.json
+devices.json
+# builds
+*.dol
+*.elf
+*.map
+build/
+!retroarch/build/
+dist/
+# never in this repo: games, media, console data
+*.iso
+*.ciso
+*.wbfs
+*.zip
+*.gvid
+*.gaud
+!sdkit/sfx/*.gaud
+nand.bin
+keys.bin
+backups/
+downloads/
+videos/*/
+!videos/av_fix/
+videos/av_fix/*/
+fleet/
+__pycache__/
+.DS_Store
+common-key.bin

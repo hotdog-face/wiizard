@@ -1,0 +1,54 @@
+# Console classics for the cabs (Mitchell's OK 2026-10-16). One per line:
+# system	file on the card (sd:/roms/<system>/)	title	year	maker	core	source on the NAS (under "All Roms/")
+genesis	mdsor1.md	Streets of Rage	1991	Sega	genesis_plus_gx	Genesis/Streets of Rage (World).md
+genesis	mdsor2.md	Streets of Rage 2	1992	Sega	genesis_plus_gx	Genesis/Streets of Rage 2 (USA).md
+genesis	mdsor3.md	Streets of Rage 3	1994	Sega	genesis_plus_gx	Genesis/Streets of Rage 3 (USA).md
+genesis	mdtmnt.md	TMNT: The Hyperstone Heist	1992	Konami	genesis_plus_gx	Genesis/Teenage Mutant Ninja Turtles - The Hyperstone Heist (USA).md
+genesis	mdgunst.md	Gunstar Heroes	1993	Treasure	genesis_plus_gx	Genesis/Gunstar Heroes (USA).md
+genesis	mdsonic.md	Sonic the Hedgehog	1991	Sega	genesis_plus_gx	Genesis/Sonic the Hedgehog (USA, Europe).md
+genesis	mdsonc2.md	Sonic the Hedgehog 2	1992	Sega	genesis_plus_gx	Genesis/Sonic the Hedgehog 2 (World).md
+genesis	mdsonc3.md	Sonic 3 & Knuckles	1994	Sega	genesis_plus_gx	Genesis/Sonic & Knuckles + Sonic the Hedgehog 3 (World).md
+genesis	mdgaxe.md	Golden Axe (Genesis)	1989	Sega	genesis_plus_gx	Genesis/Golden Axe (World).md
+genesis	mdgaxe2.md	Golden Axe II	1991	Sega	genesis_plus_gx	Genesis/Golden Axe II (World).md
+genesis	mdcontr.md	Contra: Hard Corps	1994	Konami	genesis_plus_gx	Genesis/Contra - Hard Corps (USA, Korea).md
+genesis	mdcomix.md	Comix Zone	1995	Sega	genesis_plus_gx	Genesis/Comix Zone (USA).md
+genesis	mdbombr.md	Mega Bomberman	1994	Hudson Soft	genesis_plus_gx	Genesis/Mega Bomberman (USA).md
+genesis	mdzombi.md	Zombies Ate My Neighbors	1993	LucasArts	genesis_plus_gx	Genesis/Zombies Ate My Neighbors (USA).md
+genesis	mdtje.md	ToeJam & Earl	1991	Sega	genesis_plus_gx	Genesis/ToeJam & Earl (World).md
+genesis	mdmk2.md	Mortal Kombat II	1994	Acclaim	genesis_plus_gx	Genesis/Mortal Kombat II (World).md
+genesis	mdumk3.md	Ultimate Mortal Kombat 3	1996	Williams	genesis_plus_gx	Genesis/Ultimate Mortal Kombat 3 (USA).md
+genesis	mdsf2ce.md	Street Fighter II' Special Champion Edition	1993	Capcom	genesis_plus_gx	Genesis/Street Fighter II' - Special Champion Edition (USA).md
+genesis	mdsunst.md	Sunset Riders (Genesis)	1992	Konami	genesis_plus_gx	Genesis/Sunset Riders (USA).md
+snes	snsmw.sfc	Super Mario World	1990	Nintendo	snes9x2010	SNES/Normal Games/Super Mario World (USA).sfc
+snes	snsmas.sfc	Super Mario All-Stars	1993	Nintendo	snes9x2010	SNES/Normal Games/Super Mario All-Stars (USA).sfc
+snes	snsmk.sfc	Super Mario Kart	1992	Nintendo	snes9x2010	SNES/Normal Games/Super Mario Kart (USA).sfc
+snes	sntmnt4.sfc	TMNT IV: Turtles in Time	1992	Konami	snes9x2010	SNES/2 Player/Teenage Mutant Ninja Turtles IV - Turtles in Time (USA).sfc
+snes	sncontr.sfc	Contra III: The Alien Wars	1992	Konami	snes9x2010	SNES/2 Player/Contra III - The Alien Wars (USA).sfc
+snes	snsf2t.sfc	Street Fighter II Turbo	1993	Capcom	snes9x2010	SNES/2 Player/Street Fighter II Turbo (USA).sfc
+snes	snbomb3.smc	Super Bomberman 3	1995	Hudson Soft	snes9x2010	NES/Super Bomberman 3.smc
+snes	snkirby.sfc	Kirby Super Star	1996	Nintendo	snes9x2010	SNES/2 Player/Kirby Super Star (USA).sfc
+snes	snpocky.sfc	Pocky & Rocky	1993	Natsume	snes9x2010	SNES/2 Player/Pocky & Rocky (USA).sfc
+snes	snpock2.sfc	Pocky & Rocky 2	1994	Natsume	snes9x2010	SNES/2 Player/Pocky & Rocky 2 (USA).sfc
+snes	snwildg.smc	Wild Guns	1995	Natsume	snes9x2010	SNES/2 Player/Wild Guns (U).smc
+snes	snsmash.sfc	Super Smash T.V.	1992	Acclaim	snes9x2010	SNES/2 Player/Smash T.V. (Japan) (En).sfc
+snes	sndkc.sfc	Donkey Kong Country	1994	Rare	snes9x2010	SNES/Normal Games/Donkey Kong Country (USA).sfc
+snes	sndkc2.sfc	Donkey Kong Country 2	1995	Rare	snes9x2010	SNES/Normal Games/Donkey Kong Country 2 - Diddy's Kong Quest (USA) (En,Fr).sfc
+snes	sndkc3.sfc	Donkey Kong Country 3	1996	Rare	snes9x2010	SNES/Normal Games/Donkey Kong Country 3 - Dixie Kong's Double Trouble! (USA) (En,Fr).sfc
+snes	snfzero.sfc	F-Zero	1990	Nintendo	snes9x2010	SNES/Favorites/F-Zero (USA).sfc
+snes	sntetat.sfc	Tetris Attack	1996	Nintendo	snes9x2010	SNES/Normal Games/Tetris Attack (USA) (En,Ja).sfc
+nes	nesmb.nes	Super Mario Bros.	1985	Nintendo	fceumm	NES/Super Mario Bros..nes
+nes	nesmb2.nes	Super Mario Bros. 2	1988	Nintendo	fceumm	NES/Super Mario Bros. 2.nes
+nes	nesmb3.nes	Super Mario Bros. 3	1990	Nintendo	fceumm	NES/Super Mario Bros. 3.nes
+nes	necontr.nes	Contra (NES)	1988	Konami	fceumm	NES/Contra.nes
+nes	nesuprc.nes	Super C	1990	Konami	fceumm	NES/Super C.nes
+nes	netmnt2.nes	TMNT II: The Arcade Game	1990	Konami	fceumm	NES/Teenage Mutant Ninja Turtles II - The Arcade Game.nes
+nes	nedd2.nes	Double Dragon II: The Revenge	1990	Technos	fceumm	NES/Double Dragon II - The Revenge.nes
+nes	nercr.nes	River City Ransom	1990	Technos	fceumm	NES/River City Ransom.nes
+nes	nebubbl.nes	Bubble Bobble (NES)	1988	Taito	fceumm	NES/Bubble Bobble.nes
+nes	nebtdd.nes	Battletoads & Double Dragon	1993	Rare	fceumm	NES/Battletoads & Double Dragon - The Ultimate Team.nes
+nes	nemm2.nes	Mega Man 2	1989	Capcom	fceumm	NES/Mega Man 2.nes
+nes	nemm3.nes	Mega Man 3	1990	Capcom	fceumm	NES/Mega Man 3.nes
+nes	netetri.nes	Tetris (NES)	1989	Nintendo	fceumm	NES/Tetris.nes
+nes	nedrmar.nes	Dr. Mario	1990	Nintendo	fceumm	NES/Dr. Mario.nes
+nes	neexcit.nes	Excitebike	1985	Nintendo	fceumm	NES/Excitebike.nes
+nes	neballo.nes	Balloon Fight	1986	Nintendo	fceumm	NES/Balloon Fight.nes

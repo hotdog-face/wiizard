@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>wii-agent</name>
+  <coder>Mitchell + Claude</coder>
+  <version>0.1.0</version>
+  <short_description>Network control for the wii MCP server</short_description>
+  <long_description>Listens on TCP 4300 so the Mac can list and copy files, take screenshots and launch apps.</long_description>
+  <no_ios_reload/>
+  <ahb_access/>
+</app>

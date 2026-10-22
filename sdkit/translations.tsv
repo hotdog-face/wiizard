@@ -1,0 +1,3 @@
+# English fan translations of Japanese discs (Mitchell's OK 2026-10-17). One per line:
+# new id	replaces (hidden)	folder on the card (sd:/games/<folder>/game.ciso)	staged CISO (videos/roms/ciso/...)	source
+GKQE01	GKQJ01	Kururin Squash! (English) [GKQE01]	videos/roms/ciso/Kururin Squash! (English) [GKQE01]/game.ciso	DOL-Translations/kururin-squash v2.0.1 (NewGBAXL), base SHA-1 f1e5e507...e5cc

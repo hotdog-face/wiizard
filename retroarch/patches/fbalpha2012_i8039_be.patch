@@ -1,0 +1,17 @@
+diff --git a/svn-current/trunk/src/cpu/i8039/i8039.cpp b/svn-current/trunk/src/cpu/i8039/i8039.cpp
+--- a/svn-current/trunk/src/cpu/i8039/i8039.cpp
++++ b/svn-current/trunk/src/cpu/i8039/i8039.cpp
+@@ -39,8 +39,13 @@
+ 
+ typedef union
+ {
++#ifdef MSB_FIRST
++	struct { UINT8 h3,h2,h,l; } b;
++	struct { UINT16 h,l; } w;
++#else
+ 	struct { UINT8 l,h,h2,h3; } b;
+ 	struct { UINT16 l,h; } w;
++#endif
+ 	UINT32 d;
+ } I8039_PAIR;
+ 

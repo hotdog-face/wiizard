@@ -1,0 +1,97 @@
+diff --git a/Source/Core/Core/IOS/Network/Socket.cpp b/Source/Core/Core/IOS/Network/Socket.cpp
+index feb2579..84a3e9e 100644
+--- a/Source/Core/Core/IOS/Network/Socket.cpp
++++ b/Source/Core/Core/IOS/Network/Socket.cpp
+@@ -291,6 +291,23 @@ void WiiSocket::Update(bool read, bool write, bool except)
+         memory.CopyFromEmu(&addr, ioctl.buffer_in + 8, sizeof(WiiSockAddrIn));
+         sockaddr_in local_name = WiiSockMan::ToNativeAddrIn(addr);
+ 
++        // wii-sim patch: DOLPHIN_PORT_OFFSET shifts every port the guest binds (several simulators side by
++        // side on one host), DOLPHIN_BIND_ADDR pins the address, and SO_REUSEADDR lets a restarted simulator rebind at once.
++        static const int s_port_offset = [] {
++          const char* e = getenv("DOLPHIN_PORT_OFFSET");
++          return e ? atoi(e) : 0;
++        }();
++        if (s_port_offset != 0 && local_name.sin_port != 0)
++          local_name.sin_port = htons(static_cast<u16>(ntohs(local_name.sin_port) + s_port_offset));
++        // DOLPHIN_BIND_ADDR=127.0.0.1 keeps the guest's servers (fixed-port binds) off the LAN.
++        static const char* s_bind_addr = getenv("DOLPHIN_BIND_ADDR");
++        if (s_bind_addr && *s_bind_addr && local_name.sin_port != 0)
++          inet_pton(AF_INET, s_bind_addr, &local_name.sin_addr);
++        {
++          int one = 1;
++          setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&one), sizeof(one));
++        }
++
+         int ret = bind(fd, (sockaddr*)&local_name, sizeof(local_name));
+         ReturnValue = m_socket_manager.GetNetErrorCode(ret, "SO_BIND", false);
+ 
+diff --git a/Source/Core/DolphinNoGUI/PlatformHeadless.cpp b/Source/Core/DolphinNoGUI/PlatformHeadless.cpp
+index 9bf3383..28e75fb 100644
+--- a/Source/Core/DolphinNoGUI/PlatformHeadless.cpp
++++ b/Source/Core/DolphinNoGUI/PlatformHeadless.cpp
+@@ -1,15 +1,27 @@
+ // Copyright 2018 Dolphin Emulator Project
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ 
++#include <chrono>
++#include <csignal>
+ #include <cstdio>
++#include <cstdlib>
+ #include <thread>
+ 
+ #include "Core/Core.h"
++#include "Core/HW/ProcessorInterface.h"
+ #include "Core/System.h"
+ #include "DolphinNoGUI/Platform.h"
++#include "VideoCommon/PerformanceMetrics.h"
+ 
+ namespace
+ {
++// wii-sim patch: SIGUSR1 taps the console's RESET button (kill -USR1 <pid>); SIGINT/SIGTERM tap POWER (stock).
++volatile std::sig_atomic_t s_reset_requested = 0;
++void ResetSignalHandler(int)
++{
++  s_reset_requested = 1;
++}
++
+ class PlatformHeadless final : public Platform
+ {
+ public:
+@@ -26,10 +38,35 @@ void PlatformHeadless::SetTitle(const std::string& title)
+ 
+ void PlatformHeadless::MainLoop()
+ {
++  // wii-sim patch: DOLPHIN_PERF_LOG=<secs> prints "perf speed=..% max=..%" to stdout that often.
++  const char* perf_env = std::getenv("DOLPHIN_PERF_LOG");
++  const int perf_secs = perf_env ? std::atoi(perf_env) : 0;
++  auto next_perf = std::chrono::steady_clock::now() + std::chrono::seconds(perf_secs);
++  std::signal(SIGUSR1, ResetSignalHandler);
+   while (m_running.IsSet())
+   {
+     UpdateRunningFlag();
+-    Core::HostDispatchJobs(Core::System::GetInstance());
++    auto& system = Core::System::GetInstance();
++    if (s_reset_requested)
++    {
++      s_reset_requested = 0;
++      std::fprintf(stdout, "wii-sim: RESET button tap\n");
++      std::fflush(stdout);
++      system.GetProcessorInterface().ResetButton_Tap();
++    }
++    Core::HostDispatchJobs(system);
++    if (perf_secs > 0 && std::chrono::steady_clock::now() >= next_perf)
++    {
++      next_perf += std::chrono::seconds(perf_secs);
++      if (Core::IsRunning(system))
++      {
++        auto& pm = system.GetPerfMetrics();
++        // speed = emulated time / wall time (100% = a real Wii); max = how fast it could run unthrottled
++        std::fprintf(stdout, "perf speed=%.0f%% max=%.0f%%\n", pm.GetSpeed() * 100.0,
++                     pm.GetMaxSpeed() * 100.0);
++        std::fflush(stdout);
++      }
++    }
+     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+   }
+ }

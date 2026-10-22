@@ -1,0 +1,177 @@
+diff --git a/command.c b/command.c
+index 791d510..142fe01 100644
+--- a/command.c
++++ b/command.c
+@@ -187,6 +187,7 @@ typedef struct
+    struct sockaddr_storage cmd_source;
+    /* Size of the previous structure in use */
+    socklen_t cmd_source_len;
++   uint16_t port;
+ } command_network_t;
+ 
+ static void network_command_reply(command_t *cmd,
+@@ -204,8 +205,11 @@ static void network_command_free(command_t *handle)
+ 
+    if (netcmd->net_fd >= 0)
+       socket_close(netcmd->net_fd);
+-
++#if defined(GEKKO)
++   netcmd->net_fd = -1;   /* the bring-up thread may still hold it: no free */
++#else
+    free(netcmd);
++#endif
+    free(handle);
+ }
+ 
+@@ -233,6 +237,55 @@ static void command_network_poll(command_t *handle)
+    }
+ }
+ 
++#if defined(GEKKO)
++/* SWIIRL: the 2019 Wii network library has no getsockname (only netplay NAT traversal uses it; not used here) */
++int getsockname(int s, struct sockaddr *addr, socklen_t *len) { (void)s; (void)addr; (void)len; return -1; }
++#endif
++#if defined(GEKKO)
++/* SWIIRL: on the Wii, bringing the network up (if_config) can take seconds, or long on bad Wi-Fi. Do it on a
++ * thread so the game starts at once; the command interface answers as soon as the socket is bound (poll skips a
++ * socket that is not there yet). netcmd is never freed on the Wii (the thread may still hold it). */
++static void command_network_bringup(void *data)
++{
++   command_network_t *netcmd = (command_network_t*)data;
++   struct addrinfo *res = NULL;
++   int fd;
++   if (!network_init())
++      return;
++   fd = socket_init((void**)&res, netcmd->port, NULL, SOCKET_TYPE_DATAGRAM, AF_INET);
++   if (fd < 0)
++      return;
++   if (!socket_nonblock(fd) || !socket_bind(fd, (void*)res))
++   {
++      socket_close(fd);
++      fd = -1;
++   }
++   if (res)
++      freeaddrinfo_retro(res);
++   netcmd->net_fd = fd;
++   RARCH_LOG("[NetCMD] Command interface up on port %hu (fd %d).\n", (unsigned short)netcmd->port, fd);
++}
++
++command_t* command_network_new(uint16_t port)
++{
++   command_t            *cmd = (command_t*)calloc(1, sizeof(*cmd));
++   command_network_t *netcmd = (command_network_t*)calloc(1, sizeof(command_network_t));
++   if (!cmd || !netcmd)
++   {
++      free(cmd);
++      free(netcmd);
++      return NULL;
++   }
++   netcmd->net_fd = -1;
++   netcmd->port   = port;
++   cmd->userptr   = netcmd;
++   cmd->poll      = command_network_poll;
++   cmd->replier   = network_command_reply;
++   cmd->destroy   = network_command_free;
++   sthread_create(command_network_bringup, netcmd);
++   return cmd;
++}
++#else
+ command_t* command_network_new(uint16_t port)
+ {
+    struct addrinfo     *res  = NULL;
+@@ -275,6 +328,7 @@ error:
+    free(cmd);
+    return NULL;
+ }
++#endif /* GEKKO */
+ #endif
+ 
+ #if defined(HAVE_STDIN_CMD)
+diff --git a/runloop.c b/runloop.c
+index 679517b..b1fdd96 100644
+--- a/runloop.c
++++ b/runloop.c
+@@ -5568,6 +5568,61 @@ static INLINE bool runloop_is_libretro_running(runloop_state_t* runloop_st, bool
+       &&    runloop_st->flags & RUNLOOP_FLAG_CORE_RUNNING);
+ }
+ 
++#if defined(GEKKO)
++/* SWIIRL autotest: if sd:/arcade/autotest holds a positive integer N (seconds), quit N seconds after content
++ * starts running, through the quit-key path (RUNLOOP_STATE_QUIT -> CMD_EVENT_QUIT, as a player's quit or the
++ * network QUIT does). Missing or invalid file: no effect. The file is only read, never changed (the launcher
++ * owns it). */
++#define SWIIRL_AUTOTEST_PATH "sd:/arcade/autotest"
++static long         swiirl_autotest_secs     = -1; /* -1: not read yet, 0: off or done */
++static retro_time_t swiirl_autotest_deadline = 0;
++
++static void swiirl_autotest_read(void)
++{
++   char buf[24];
++   char *end = NULL;
++   size_t len;
++   long n;
++   FILE *f   = fopen(SWIIRL_AUTOTEST_PATH, "r");
++
++   swiirl_autotest_secs = 0;
++   if (!f)
++      return;
++   len      = fread(buf, 1, sizeof(buf) - 1, f);
++   fclose(f);
++   buf[len] = '\0';
++   n        = strtol(buf, &end, 10);
++   while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')
++      end++;
++   if (end != buf && *end == '\0' && n > 0 && n <= 1000000)
++      swiirl_autotest_secs = n;
++}
++
++/* On every frame the core runs: starts the clock on the first one with content loaded. */
++static void swiirl_autotest_arm(runloop_state_t *runloop_st, retro_time_t now)
++{
++   if (     swiirl_autotest_secs > 0
++         && !swiirl_autotest_deadline
++         && runloop_st->current_core_type != CORE_TYPE_DUMMY
++         && !path_is_empty(RARCH_PATH_CONTENT))
++      swiirl_autotest_deadline = now + (retro_time_t)swiirl_autotest_secs * 1000000;
++}
++
++static bool swiirl_autotest_due(retro_time_t now)
++{
++   if (swiirl_autotest_secs < 0)
++      swiirl_autotest_read();   /* first frame after start-up */
++   if (     swiirl_autotest_secs <= 0
++         || !swiirl_autotest_deadline
++         || now < swiirl_autotest_deadline)
++      return false;
++   RARCH_LOG("[SWIIRL] autotest: %ld s of content elapsed (%s), quitting.\n",
++         swiirl_autotest_secs, SWIIRL_AUTOTEST_PATH);
++   swiirl_autotest_secs = 0;
++   return true;
++}
++#endif
++
+ static enum runloop_state_enum runloop_check_state(
+       input_driver_state_t *input_st,
+       audio_driver_state_t *audio_st,
+@@ -5918,6 +5973,11 @@ static enum runloop_state_enum runloop_check_state(
+          }
+       }
+ 
++#if defined(GEKKO)
++      if (swiirl_autotest_due(current_time))
++         trig_quit_key = true;
++#endif
++
+       if (RUNLOOP_TIME_TO_EXIT(trig_quit_key))
+       {
+          bool quit_runloop           = false;
+@@ -7358,6 +7418,9 @@ int runloop_iterate(void)
+          goto end;
+       case RUNLOOP_STATE_ITERATE:
+          runloop_st->flags       |= RUNLOOP_FLAG_CORE_RUNNING;
++#if defined(GEKKO)
++         swiirl_autotest_arm(runloop_st, current_time);
++#endif
+          break;
+    }
+ 

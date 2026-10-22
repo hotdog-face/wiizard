@@ -1,0 +1,38 @@
+diff --git a/audio/drivers/gx_audio.c b/audio/drivers/gx_audio.c
+index bd864c5..014a3e9 100644
+--- a/audio/drivers/gx_audio.c
++++ b/audio/drivers/gx_audio.c
+@@ -39,7 +39,9 @@
+ typedef struct
+ {
+    size_t write_ptr;
+-   uint32_t data[BLOCKS][CHUNK_FRAMES];
++   /* 32-byte aligned: the AI DMA address drops its low 5 bits, so an unaligned chunk made the DMA start 4 bytes
++    * early and play the previous chunk last frame (zeroed by the callback memset) = one bad sample per chunk */
++   uint32_t data[BLOCKS][CHUNK_FRAMES] __attribute__((aligned(32)));
+    volatile unsigned dma_busy;
+    volatile unsigned dma_next;
+    volatile unsigned dma_write;
+diff --git a/gfx/drivers/gx_gfx.c b/gfx/drivers/gx_gfx.c
+index 2e52473..ac538d5 100644
+--- a/gfx/drivers/gx_gfx.c
++++ b/gfx/drivers/gx_gfx.c
+@@ -572,6 +572,9 @@ static void gx_set_video_mode(void *data, unsigned fbWidth, unsigned lines,
+    GX_SetPixelFmt(GX_PF_RGB8_Z24, GX_ZC_LINEAR);
+    GX_InvalidateTexAll();
+    GX_Flush();
++   /* clear the EFB now (it still holds the previous program's last picture) */
++   GX_CopyDisp(gx->framebuf[0], GX_TRUE);
++   GX_DrawDone();
+ 
+    /* Now apply all the configuration to the screen */
+    VIDEO_Configure(&gx_mode);
+@@ -1547,7 +1550,7 @@ static bool gx_frame(void *data, const void *frame,
+    char fps_text_buf[128];
+    settings_t               *settings = config_get_ptr();
+    gx_video_t *gx                     = (gx_video_t*)data;
+-   u8                       clear_efb = GX_FALSE;
++   u8                       clear_efb = GX_TRUE;   /* always: no stale EFB pixels outside the viewport */
+    uint32_t level                     = 0;
+    unsigned overscan_corr_top         = settings->uints.video_overscan_correction_top;
+    unsigned overscan_corr_bottom      = settings->uints.video_overscan_correction_bottom;
