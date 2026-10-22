@@ -8,7 +8,7 @@ hands-free, by Claude through an MCP server and a small remote agent built into 
 
 <p align="center"><img src="docs/media/loop-intro.gif" width="640" alt="Power-on: the wizard pops in, WIIZARD slams, the game count ticks up"></p>
 
-<p align="center"><b><a href="https://github.com/hotdog-face/wiizard/releases/download/v0.11-media/WIIZARD-reel.mp4">Watch the reel (85 s)</a></b> &middot;
+<p align="center"><b><a href="https://github.com/hotdog-face/wiizard/releases/download/v0.11-media/WIIZARD-reel.mp4">Watch the reel (72 s)</a></b> &middot;
 <a href="https://github.com/hotdog-face/wiizard/releases/tag/v0.11-media">1080p screen recordings</a> &middot; <a href="#gallery">Gallery</a></p>
 
 The wizard is my own character, from my own illustration, cut out of the original PSD and puppeted for the power-on
