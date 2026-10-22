@@ -6,12 +6,56 @@ gameplay clips, a browse menu with collections, and one-button starts for arcade
 discs and Wii games. Nobody touches a Wii Menu, a settings screen or a Wii Remote. The cabinets are run from a Mac,
 hands-free, by Claude through an MCP server and a small remote agent built into the launcher.
 
-![WIIZARD on a cabinet: menu, attract mode, loading screen, and the intro](screens/collage-0.11.0/board.png)
+<p align="center"><img src="docs/media/loop-intro.gif" width="640" alt="Power-on: the wizard pops in, WIIZARD slams, the game count ticks up"></p>
 
-<p align="center"><img src="docs/wizard-intro.gif" width="320" alt="The WIIZARD intro: the wizard pops in and flicks a Wii Remote like a wand"></p>
+<p align="center"><b><a href="https://github.com/hotdog-face/wiizard/releases/download/v0.11-media/WIIZARD-reel.mp4">Watch the reel (85 s)</a></b> &middot;
+<a href="https://github.com/hotdog-face/wiizard/releases/tag/v0.11-media">1080p screen recordings</a> &middot; <a href="#gallery">Gallery</a></p>
 
 The wizard is my own character (from a 2017 drawing), cut out of the original PSD and puppeted for the power-on
 intro: pop-in with squash and stretch, a blink, the Wii Remote flicked up like a wand, a wink, an idle bob.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/loop-menu.gif" alt="Browsing the menu: carousel, sections, favourite heart"><br><sub>The menu: carousel, sections, the favourite heart</sub></td>
+<td width="50%"><img src="docs/media/loop-attract.gif" alt="Attract mode cycling games"><br><sub>Attract mode: a game's own demo on a taped photo, PRESS A TO PLAY</sub></td>
+</tr>
+</table>
+
+## Gallery
+
+All launcher footage is the real launcher build on a real card's contents, recorded in our headless Dolphin
+simulator with scripted pad input (so every take is smooth), plus framebuffer screenshots from the cabinet itself.
+Loops are also here as small MP4s: [intro](docs/media/loop-intro.mp4), [menu](docs/media/loop-menu.mp4),
+[attract](docs/media/loop-attract.mp4). Full-length 1080p recordings (clean and with a CRT treatment), including
+launching games and coming back, are on the [v0.11-media release](https://github.com/hotdog-face/wiizard/releases/tag/v0.11-media).
+
+| | |
+|---|---|
+| ![Intro](docs/media/still-01-intro-wizard.jpg) | ![Menu carousel](docs/media/still-04-menu-carousel.jpg) |
+| **Intro**: the wizard, the WIIZARD slam, games and systems counted | **Menu**: the selected game's clip on a taped photo, neighbours as blue duotones |
+| ![Favourite heart](docs/media/still-06-menu-favourite-heart.jpg) | ![Console classics](docs/media/still-05-menu-console-classics.jpg) |
+| **Favourites**: Y hearts a game | **Sections**: L / R through the collections |
+| ![Attract mode](docs/media/still-02-attract-sunset-riders.jpg) | ![Loading](docs/media/still-08-loading-metal-slug.jpg) |
+| **Attract mode** | **Loading**: the controls and the one exit combo, before every game |
+| ![Returning](docs/media/still-10-returning-to-wiizard.jpg) | ![Shooters](docs/media/still-07-menu-shooters-section.jpg) |
+| **Back from a game**, straight into the launcher | **Shooters**, one of the play-count-ordered collections |
+
+### How it was made
+
+![Twenty directions to one](docs/media/board-01-twenty-directions.jpg)
+![The shortlist](docs/media/board-02-shortlist.jpg)
+![Finding the wizard](docs/media/board-03-mascot.jpg)
+![Rigging the wizard](docs/media/board-04-wizard-rig.jpg)
+![Wired, the hard way: the USB Ethernet driver](docs/media/board-05-ethernet-driver.jpg)
+![Run like a fleet](docs/media/board-06-fleet.jpg)
+![Before / after](docs/media/board-07-before-after.jpg)
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/before-v0.3-purple.jpg" alt="Launcher 0.3, the first look"><br><sub>0.3: the first launcher</sub></td>
+<td width="50%"><img src="docs/media/before-green-terminal-menu.jpg" alt="The green terminal look before 0.11"><br><sub>Before 0.11: the green terminal look</sub></td>
+</tr>
+</table>
 
 ## What's in here
 
@@ -31,9 +75,10 @@ intro: pop-in with squash and stretch, a blink, the Wii Remote flicked up like a
 
 The USB Ethernet driver lives on as its own library: **[libwiieth](https://github.com/hotdog-face/libwiieth)**.
 
-Not in here, on purpose: games, ROMs, disc images, gameplay clips, stills, box art, flyers and marquees (all
-copyrighted by their owners; the scripts that make the media are here, the media isn't), built DOLs, third-party
-sources (linked below), console NAND backups, keys, and anything about my own network.
+Not in here, on purpose: games, ROMs, disc images, the launcher's gameplay clips, stills, box art, flyers and marquees
+(all copyrighted by their owners; the scripts that make them are here, the media isn't), built DOLs, third-party
+sources (linked below), console NAND backups, keys, and anything about my own network. The recordings in
+`docs/media/` show the launcher's interface; games appear only as they do inside it, briefly.
 
 ## How it works
 
@@ -89,6 +134,8 @@ autoboot), checks the router every 20 s when idle, and drops clients that go sil
 
 ### The Ethernet driver story
 
+![Wii -> USB adapter -> our driver -> lwIP -> the launcher](docs/media/board-05-ethernet-driver.jpg)
+
 The first cabinet sits next to the router, so it should have been on a cable. It wasn't that easy: its USB LAN
 adapter (a TRENDnet TU2-ET100, ASIX AX88772B) isn't one IOS knows. `net_init` failed with -24 and the adapter's
 link light never even came on, because IOS never powers up the chip's PHY. Switching IOS's own connection to wired
@@ -135,6 +182,8 @@ was for); `retroarch/build/` has the core build and link scripts. The fast-exit 
 black-screened once on real hardware and are on hold; the cabinets run the A/V-fix set.
 
 ### Fleet and updates
+
+![The Mac, the update server, the cabinets and the simulator](docs/media/board-06-fleet.jpg)
 
 - `publish.py` stages what the cabinets should run (launcher, hop, Nintendont, RetroArch config and overrides, media,
   metadata) with a manifest of sizes and CRCs, and syncs it to a small HTTP server on the LAN. Cabinets idle in
