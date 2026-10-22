@@ -17,7 +17,7 @@ intro: pop-in with squash and stretch, a blink, the Wii Remote flicked up like a
 
 | Path | What |
 |---|---|
-| `agent/` | **The launcher** (C, libogc, devkitPPC): menu, attract mode, game launching, the remote agent (TCP 4300), pull updates, our USB Ethernet driver, a GX renderer |
+| `agent/` | **The launcher** (C, libogc, devkitPPC): menu, attract mode, game launching, the remote agent (TCP 4300), pull updates, our USB Ethernet driver, disc drive commands, a GX renderer |
 | `hop/` | The tiny start-up program Priiloader runs from NAND; it picks the launcher, the last good launcher, or the Homebrew Channel |
 | `wii_mcp.py`, `wiiagent.py`, `wiiload.py` | The MCP server (stdio JSON-RPC) and the agent protocol client |
 | `fleet.py`, `publish.py`, `cab_queue.py`, `queue_run.py`, `cab_test.py` | Fleet collection and health report, the update server publisher, unattended boot tests |
@@ -149,6 +149,39 @@ RetroArch on a CRT, done properly: 240p with lines 1:1, a custom viewport over t
 width from each board's dot clock (CPS 648, Neo Geo 684/720, consoles 644), generated per game by
 `videos/av_fix/make_overrides.py`. `videos/av_fix/findings.md` has the measurements. Every Wii is set to 480i, 60 Hz,
 4:3 remotely (SYSCONF), because 480p is no picture on a 15 kHz set and 16:9 squashes everything.
+
+### Disc drive (work in progress)
+
+The cabinets play everything from the SD card, but every Wii still has a disc drive. We're working on using it.
+
+**Built (in the launcher, not yet run on a cabinet):** `agent/source/disc.c` adds three agent commands, using
+libogc's libdi. With AHBPROT (the launcher keeps it), libdi talks to the drive hardware directly, so it needs no
+cIOS:
+
+- `DISC INFO`: the drive's revision, device code and firmware date, and whether it can read DVDs. Only drives with
+  firmware dated 2008-07-14 or earlier read DVDs (libdi's own check). Later drives (the D3-2) can't read them at all.
+  It also reports the cover state, how the disc mounted (D0 or A8 reads), and what's in the drive: a GameCube or Wii
+  disc's ID and title, or an ISO9660 volume label.
+- `DISC READ <lba> <count> <file>`: raw 2048-byte sectors to a file on the card.
+- `DISC CLOSE`.
+
+It compiles and is in the launcher build. Nothing has been checked on real hardware yet.
+
+**Testing next, on the real cabinet:** `DISC INFO` with the drive empty, to get its firmware date and so whether it
+can read DVDs. If it can: a burned DVD-R and a DVD-Video (volume label, sector reads into `VIDEO_TS`, checking the
+IFO headers on the Mac), then a GameCube and a Wii disc (ID and title).
+
+**Planned, not started:**
+- **DVD movie mode** (only on DVD-capable drives): play DVD-Video through a GPL player such as MPlayer CE or WiiMC.
+  The drive won't do CSS authentication for us, so CSS is handled in software (libdvdcss-style title key recovery,
+  a few seconds per title on the Wii's CPU).
+- **Disc insert -> Play / Add to library**: put in a GameCube or Wii disc and choose to play it, or to dump it the way
+  CleanRip does. The dump is verified against Redump, backed up to the NAS, and checked against the library's curation
+  rules before it shows up on the cabinets.
+- Both behind feature flags, so other people's cabinets only get them if they want them.
+
+**What the drive can't do:** Blu-ray (the drive can't read it), any CD (audio or data: the Wii drive doesn't read CDs),
+and PS2 discs (no PS2 emulation on a Wii).
 
 ## Art direction
 

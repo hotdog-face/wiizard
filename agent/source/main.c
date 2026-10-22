@@ -56,6 +56,7 @@
 #include "gfx.h"
 #include "update.h"
 #include "eth.h"
+#include "disc.h"
 #include "lwnet.h"
 
 void __exception_setreload(int t);      // libogc, not in its headers: reload after t s on a crash
@@ -1088,6 +1089,7 @@ static void handle(conn_t *c, char *line) {
     }
     else if (!strcmp(line, "LOG")) cmd_log(c);
     else if (!strcmp(line, "ETH")) cmd_eth(c, arg);
+    else if (!strcmp(line, "DISC")) { char out[400]; disc_command(arg, out, sizeof out); sendf(c, "%s\n", out); }
     else if (!strcmp(line, "IOSPATCH")) {
         char out[200];
         int r = ios_patch(out, sizeof out);

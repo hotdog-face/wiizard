@@ -12,7 +12,7 @@ INCLUDES := source/lwipport lwip/include
 
 CFLAGS   = -g -O2 -Wall $(MACHDEP) $(INCLUDE) -D_REENTRANT -I$(DEVKITPRO)/portlibs/ppc/include/freetype2
 LDFLAGS  = -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
-LIBS     := -lasnd -lturbojpeg -lSDL2_ttf -lharfbuzz -lfreetype -lbz2 -lbrotlidec -lbrotlicommon -lSDL2_image -lpng16 -ljpeg -lz -lSDL2 -lfat -lwiiuse -lbte -logc -lm
+LIBS     := -lasnd -lturbojpeg -lSDL2_ttf -lharfbuzz -lfreetype -lbz2 -lbrotlidec -lbrotlicommon -lSDL2_image -lpng16 -ljpeg -lz -lSDL2 -lfat -ldi -lwiiuse -lbte -logc -lm
 LIBDIRS  := $(DEVKITPRO)/portlibs/wii $(DEVKITPRO)/portlibs/ppc
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
